@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚽ WC 2026 Sticker Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #15803d; --green-bg: #f0fdf4; --green-border: #bbf7d0;
+    --amber: #b45309; --amber-bg: #fffbeb;
+    --blue: #1d4ed8; --gray: #6b7280; --dark: #1f2937;
+    --border: #e5e7eb; --surface: #f9fafb; --radius: 10px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: var(--dark); min-height: 100vh; }
+  header {
+    background: #0f2340; color: white; padding: 0 20px;
+    height: 54px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  header .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+  main { max-width: 960px; margin: 0 auto; padding: 18px 14px; }
+  .card { background: white; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-card { text-align: center; padding: 13px 8px; }
+  .stat-card .val { font-size: 24px; font-weight: 700; margin-top: 3px; }
+  .stat-card .lbl { font-size: 11px; color: var(--gray); font-weight: 500; }
+  .progress-wrap { padding: 16px 18px; margin-bottom: 12px; }
+  .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .progress-title { font-weight: 700; font-size: 14px; }
+  .progress-pct { font-size: 22px; font-weight: 800; color: var(--green); }
+  .progress-bar-bg { height: 12px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #15803d, #22c55e); border-radius: 99px; transition: width .4s ease; }
+  .progress-sub { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--gray); }
+  .section-panel { margin-bottom: 12px; overflow: hidden; }
+  .section-toggle { width: 100%; padding: 13px 18px; text-align: left; background: transparent; border: none; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 700; color: var(--dark); cursor: pointer; }
+  .section-toggle:hover { background: var(--surface); }
+  .section-body { display: none; padding: 0 18px 18px; }
+  .section-body.open { display: block; }
+  .section-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .sort-btns { display: flex; gap: 5px; align-items: center; font-size: 11px; color: var(--gray); }
+  .sort-btn { padding: 3px 9px; font-size: 11px; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; background: var(--surface); color: var(--dark); font-family: inherit; }
+  .sort-btn.active { background: var(--dark); color: white; border-color: var(--dark); }
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; }
+  .team-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: box-shadow .15s; }
+  .team-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+  .team-card.complete { background: var(--green-bg); border-color: var(--green-border); }
+  .team-card-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .team-name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 68%; }
+  .team-pct { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .mini-bar-bg { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 4px; }
+  .mini-bar-fill { height: 100%; border-radius: 99px; transition: width .3s; }
+  .team-sub { display: flex; gap: 8px; margin-top: 5px; font-size: 10px; color: #9ca3af; }
+  .filters { padding: 12px 14px; margin-bottom: 12px; }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .filter-row input, .filter-row select {
+    flex: 1 1 140px; padding: 7px 10px; font-size: 13px;
+    border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit;
+    background: white; color: var(--dark); outline: none;
+  }
+  .filter-row input:focus, .filter-row select:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+  .btn { padding: 7px 14px; font-size: 13px; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; transition: filter .12s; }
+  .btn:hover { filter: brightness(.9); }
+  .btn-dark { background: var(--dark); color: white; }
+  .btn-ghost { background: white; color: var(--dark); border: 1px solid var(--border); }
+  .filter-info { margin-top: 8px; font-size: 12px; color: var(--gray); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--border); background: white; cursor: pointer; }
+  .sticker-list { overflow: hidden; }
+  .sticker-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: filter .12s; user-select: none; }
+  .sticker-row:last-child { border-bottom: none; }
+  .sticker-row:hover { filter: brightness(.97); }
+  .sticker-row.have { background: rgba(22,163,74,.07); }
+  .sticker-row.duplicate { background: rgba(217,119,6,.07); }
+  .sticker-icon { font-size: 17px; min-width: 20px; text-align: center; }
+  .sticker-id { font-family: monospace; font-size: 11px; font-weight: 600; color: #2563eb; min-width: 50px; flex-shrink: 0; }
+  .sticker-desc { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .foil-badge { font-size: 10px; background: #fef3c7; color: #92400e; padding: 1px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle; font-weight: 600; }
+  .sticker-country { font-size: 11px; color: #9ca3af; min-width: 100px; text-align: right; flex-shrink: 0; }
+  .sticker-status { font-size: 11px; font-weight: 500; min-width: 55px; text-align: right; flex-shrink: 0; }
+  .no-results { padding: 2.5rem; text-align: center; color: #9ca3af; font-size: 13px; }
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: var(--radius); padding: 24px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .modal-header h3 { font-size: 15px; font-weight: 700; }
+  .modal p { font-size: 12px; color: var(--gray); line-height: 1.6; margin-bottom: 14px; }
+  .modal label { display: block; font-size: 11px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+  .modal .input-row { display: flex; gap: 7px; margin-bottom: 18px; }
+  .modal input { font-family: monospace; font-size: 10px; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; flex: 1; outline: none; }
+  .msg { margin-top: 10px; font-size: 12px; padding: 8px 12px; border-radius: 6px; display: none; }
+  .msg.success { background: var(--green-bg); color: var(--green); display: block; }
+  .msg.error { background: #fee2e2; color: #dc2626; display: block; }
+  @media (max-width: 600px) {
+    .grid4 { grid-template-columns: repeat(2,1fr); }
+    .sticker-country { display: none; }
+  }
+
+  /* ── PRINT STYLES ── */
+  .print-header { display: none; }
+
+  @media print {
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    body { background: white; font-size: 9px; margin: 0; }
+    header, .grid4, .progress-wrap, .section-panel, .filters,
+    .modal-overlay, .no-btn-print { display: none !important; }
+
+    main { max-width: 100%; padding: 0; margin: 0; }
+
+    /* Print header */
+    .print-header {
+      display: block;
+      border-bottom: 2px solid #0f2340;
+      padding-bottom: 7px;
+      margin-bottom: 10px;
+    }
+    .print-header h1 { font-size: 13px; color: #0f2340; margin-bottom: 3px; }
+    .print-header .print-meta { font-size: 8px; color: #6b7280; display: flex; gap: 14px; flex-wrap: wrap; }
+    .print-header .print-stat { font-weight: 600; color: #1f2937; }
+
+    /* Two-column sticker grid */
+    .card.sticker-list { border: none; box-shadow: none; }
+    #sticker-list { columns: 2; column-gap: 10px; }
+
+    /* Section headers span both columns */
+    .print-section-break {
+      column-span: all;
+      display: block;
+      font-size: 8px;
+      font-weight: 700;
+      color: #0f2340;
+      background: #e8edf3 !important;
+      padding: 2px 5px;
+      border-left: 3px solid #0f2340;
+      margin-top: 5px;
+      margin-bottom: 1px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    /* Compact sticker rows */
+    .sticker-row {
+      display: flex !important;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 4px !important;
+      border-bottom: 0.5px solid #e5e7eb !important;
+      background: transparent !important;
+      filter: none !important;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      width: 100%;
+    }
+    .sticker-row.have      { background: #f0fdf4 !important; }
+    .sticker-row.duplicate { background: #fffbeb !important; }
+
+    .sticker-icon   { font-size: 9px !important;  min-width: 12px !important; flex-shrink: 0; }
+    .sticker-id     { font-size: 8px !important;   min-width: 36px !important; flex-shrink: 0; font-family: monospace; font-weight: 600; color: #2563eb; }
+    .sticker-desc   { font-size: 8px !important;   flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sticker-country { display: none !important; } /* hidden — section headers already show team */
+    .sticker-status { font-size: 8px !important;   min-width: 38px !important; text-align: right; flex-shrink: 0; font-weight: 600; }
+    .foil-badge     { font-size: 6px !important;   padding: 0 3px !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚽ WC 2026 Sticker Tracker</div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-ghost no-btn-print" onclick="openShare()" style="font-size:13px;padding:5px 12px;background:transparent;border-color:#374151;color:#d1d5db">📤 Share</button>
+    <button class="btn btn-ghost no-btn-print" onclick="doPrint()" style="font-size:13px;padding:5px 12px;background:transparent;border-color:#374151;color:#d1d5db">🖨️ Print</button>
+  </div>
+</header>
+
+<main>
+  <!-- Print-only header (hidden on screen) -->
+  <div class="print-header">
+    <h1>⚽ FIFA World Cup 2026 — Panini Sticker Tracker</h1>
+    <div class="print-meta" id="print-meta"></div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="grid4" id="stat-cards">
+    <div class="card stat-card"><div class="lbl">Total stickers</div><div class="val" id="val-total">980</div></div>
+    <div class="card stat-card"><div class="lbl">Got it ✅</div><div class="val" id="val-have" style="color:var(--green)">0</div></div>
+    <div class="card stat-card"><div class="lbl">Duplicate 🔄</div><div class="val" id="val-dup" style="color:var(--amber)">0</div></div>
+    <div class="card stat-card"><div class="lbl">Still needed</div><div class="val" id="val-needed" style="color:var(--blue)">980</div></div>
+  </div>
+
+  <!-- Overall progress -->
+  <div class="card progress-wrap">
+    <div class="progress-header">
+      <span class="progress-title">Overall completion</span>
+      <span class="progress-pct" id="overall-pct">0%</span>
+    </div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="overall-bar" style="width:0%"></div></div>
+    <div class="progress-sub" id="overall-sub"></div>
+  </div>
+
+  <!-- Team stats -->
+  <div class="card section-panel">
+    <button class="section-toggle" onclick="toggleSection()">
+      <span>📊 Completion by Team / Section</span>
+      <span id="section-chevron" style="font-size:12px;color:var(--gray);font-weight:400">▼ Show</span>
+    </button>
+    <div class="section-body" id="section-body">
+      <div class="section-meta">
+        <span id="section-summary" style="font-size:12px;color:var(--gray)"></span>
+        <div class="sort-btns">
+          Sort:
+          <button class="sort-btn active" id="sort-name" onclick="setSort('name')">A–Z</button>
+          <button class="sort-btn" id="sort-pct" onclick="setSort('pct')">% done</button>
+          <button class="sort-btn" id="sort-missing" onclick="setSort('missing')">missing</button>
+        </div>
+      </div>
+      <div class="team-grid" id="team-grid"></div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card filters">
+    <div class="filter-row">
+      <input type="text" id="search" placeholder="Search player, code or team…" oninput="renderList()">
+      <select id="country-filter" onchange="renderList()">
+        <option value="">All teams</option>
+      </select>
+      <select id="status-filter" onchange="renderList()">
+        <option value="">All status</option>
+        <option value="pending">⬜ Missing</option>
+        <option value="have">✅ Got it</option>
+        <option value="duplicate">🔄 Duplicate</option>
+      </select>
+      <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
+        <span style="font-size:11px;color:var(--gray);white-space:nowrap">Order:</span>
+        <button class="sort-btn active" id="order-album" onclick="setOrder('album')" title="Follow the physical album page order">📖 Album</button>
+        <button class="sort-btn"        id="order-az"    onclick="setOrder('az')"    title="Sort alphabetically by country name in English">🔤 A–Z</button>
+      </div>
+    </div>
+    <div class="filter-info">
+      <span id="filter-count"></span>
+      <span id="active-filter"></span>
+    </div>
+  </div>
+
+  <!-- Sticker list -->
+  <div class="card sticker-list" id="sticker-list"></div>
+</main>
+
+<!-- Share modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeShare()">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Share / Import Collection</h3>
+      <button class="btn btn-ghost" onclick="closeShare()" style="padding:3px 10px">✕</button>
+    </div>
+    <p>Copy this code and send via WhatsApp or email. The recipient pastes it in the Import field below to load your exact collection.</p>
+    <label>Your collection code</label>
+    <div class="input-row">
+      <input id="export-input" readonly onclick="this.select()">
+      <button class="btn btn-dark" id="copy-btn" onclick="doCopy()">Copy</button>
+    </div>
+    <label>Import a collection</label>
+    <div class="input-row" style="margin-bottom:0">
+      <input id="import-input" placeholder="Paste code here…">
+      <button class="btn btn-dark" onclick="doImport()">Load</button>
+    </div>
+    <div class="msg" id="import-msg"></div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const STICKERS = [
+["00","Panini Logo","Introduction",true],
+["FWC1","Official Emblem","Introduction",true],["FWC2","Official Emblem (variant)","Introduction",true],["FWC3","Official Mascots","Introduction",true],["FWC4","Official Slogan","Introduction",true],["FWC5","Official Ball","Introduction",true],
+["FWC6","Canada – Host Countries & Cities","Introduction",true],["FWC7","Mexico – Host Countries & Cities","Introduction",true],["FWC8","USA – Host Countries & Cities","Introduction",true],
+["ALG1","Team Logo","Algeria",true],["ALG2","Alexis Guendouz","Algeria",false],["ALG3","Ramy Bensebaini","Algeria",false],["ALG4","Youcef Atal","Algeria",false],["ALG5","Rayan Aït-Nouri","Algeria",false],["ALG6","Mohamed Amine Tougai","Algeria",false],["ALG7","Aïssa Mandi","Algeria",false],["ALG8","Ismael Bennacer","Algeria",false],["ALG9","Houssem Aquar","Algeria",false],["ALG10","Hicham Boudaoui","Algeria",false],["ALG11","Ramiz Zerrouki","Algeria",false],["ALG12","Nabil Bentalab","Algeria",false],["ALG13","Team Photo","Algeria",false],["ALG14","Farés Chaibi","Algeria",false],["ALG15","Riyad Mahrez","Algeria",false],["ALG16","Said Benrahma","Algeria",false],["ALG17","Anis Hadj Moussa","Algeria",false],["ALG18","Amine Gouiri","Algeria",false],["ALG19","Baghdad Bounedjah","Algeria",false],["ALG20","Mohammed Amoura","Algeria",false],
+["ARG1","Team Logo","Argentina",true],["ARG2","Emiliano Martinez","Argentina",false],["ARG3","Nahuel Molina","Argentina",false],["ARG4","Cristian Romero","Argentina",false],["ARG5","Nicolas Otamendi","Argentina",false],["ARG6","Nicolas Tagliafico","Argentina",false],["ARG7","Leonardo Balerdi","Argentina",false],["ARG8","Enzo Fernandez","Argentina",false],["ARG9","Alexis Mac Allister","Argentina",false],["ARG10","Rodrigo De Paul","Argentina",false],["ARG11","Exequiel Palacios","Argentina",false],["ARG12","Leandro Paredes","Argentina",false],["ARG13","Team Photo","Argentina",false],["ARG14","Nico Paz","Argentina",false],["ARG15","Franco Mastantuono","Argentina",false],["ARG16","Nico Gonzalez","Argentina",false],["ARG17","Lionel Messi","Argentina",false],["ARG18","Lautaro Martinez","Argentina",false],["ARG19","Julian Alvarez","Argentina",false],["ARG20","Giuliano Simeone","Argentina",false],
+["AUS1","Team Logo","Australia",true],["AUS2","Mathew Ryan","Australia",false],["AUS3","Joe Gauci","Australia",false],["AUS4","Harry Souttar","Australia",false],["AUS5","Alessandro Circati","Australia",false],["AUS6","Jordan Bos","Australia",false],["AUS7","Aziz Behich","Australia",false],["AUS8","Cameron Burgess","Australia",false],["AUS9","Lewis Miller","Australia",false],["AUS10","Milos Degenek","Australia",false],["AUS11","Jackson Irvine","Australia",false],["AUS12","Riley McGree","Australia",false],["AUS13","Team Photo","Australia",false],["AUS14","Aiden O'Neill","Australia",false],["AUS15","Connor Metcalfe","Australia",false],["AUS16","Patrick Yazbek","Australia",false],["AUS17","Craig Goodwin","Australia",false],["AUS18","Kusini Vengi","Australia",false],["AUS19","Nestory Irankunda","Australia",false],["AUS20","Mohamed Touré","Australia",false],
+["AUT1","Team Logo","Austria",true],["AUT2","Alexander Schlager","Austria",false],["AUT3","Patrick Pentz","Austria",false],["AUT4","David Alaba","Austria",false],["AUT5","Kevin Danso","Austria",false],["AUT6","Philipp Lienhart","Austria",false],["AUT7","Stefan Posch","Austria",false],["AUT8","Phillipp Mwene","Austria",false],["AUT9","Alexander Prass","Austria",false],["AUT10","Xaver Schlager","Austria",false],["AUT11","Marcel Sabitzer","Austria",false],["AUT12","Konrad Laimer","Austria",false],["AUT13","Team Photo","Austria",false],["AUT14","Florian Grillitsch","Austria",false],["AUT15","Nicolas Seiwald","Austria",false],["AUT16","Romano Schmid","Austria",false],["AUT17","Patrick Wimmer","Austria",false],["AUT18","Christoph Baumgartner","Austria",false],["AUT19","Michael Gregoritsch","Austria",false],["AUT20","Marko Arnautović","Austria",false],
+["BEL1","Team Logo","Belgium",true],["BEL2","Thibaut Courtois","Belgium",false],["BEL3","Arthur Theate","Belgium",false],["BEL4","Timothy Castagne","Belgium",false],["BEL5","Zeno Debast","Belgium",false],["BEL6","Brandon Mechele","Belgium",false],["BEL7","Maxim De Cuyper","Belgium",false],["BEL8","Thomas Meunier","Belgium",false],["BEL9","Youri Tielemans","Belgium",false],["BEL10","Amadou Onana","Belgium",false],["BEL11","Nicolas Raskin","Belgium",false],["BEL12","Alexis Saelemaekers","Belgium",false],["BEL13","Team Photo","Belgium",false],["BEL14","Hans Vanaken","Belgium",false],["BEL15","Kevin De Bruyne","Belgium",false],["BEL16","Jérémy Doku","Belgium",false],["BEL17","Charles De Ketelaere","Belgium",false],["BEL18","Leandro Trossard","Belgium",false],["BEL19","Loïs Openda","Belgium",false],["BEL20","Romelu Lukaku","Belgium",false],
+["BIH1","Team Logo","Bosnia and Herzegovina",true],["BIH2","Nikola Vasilj","Bosnia and Herzegovina",false],["BIH3","Amer Dedic","Bosnia and Herzegovina",false],["BIH4","Sead Kolasinac","Bosnia and Herzegovina",false],["BIH5","Tarik Muharemovic","Bosnia and Herzegovina",false],["BIH6","Nihad Mujakic","Bosnia and Herzegovina",false],["BIH7","Nikola Katic","Bosnia and Herzegovina",false],["BIH8","Amir Hadziahmetovic","Bosnia and Herzegovina",false],["BIH9","Benjamin Tahirovic","Bosnia and Herzegovina",false],["BIH10","Armin Gigovic","Bosnia and Herzegovina",false],["BIH11","Ivan Sunjic","Bosnia and Herzegovina",false],["BIH12","Ivan Basic","Bosnia and Herzegovina",false],["BIH13","Team Photo","Bosnia and Herzegovina",false],["BIH14","Dzenis Burnic","Bosnia and Herzegovina",false],["BIH15","Esmir Bajraktarevic","Bosnia and Herzegovina",false],["BIH16","Amar Memic","Bosnia and Herzegovina",false],["BIH17","Ermedin Demirovic","Bosnia and Herzegovina",false],["BIH18","Edin Dzeko","Bosnia and Herzegovina",false],["BIH19","Samed Bazdar","Bosnia and Herzegovina",false],["BIH20","Haris Tabakovic","Bosnia and Herzegovina",false],
+["BRA1","Team Logo","Brazil",true],["BRA2","Alisson","Brazil",false],["BRA3","Bento","Brazil",false],["BRA4","Marquinhos","Brazil",false],["BRA5","Éder Militão","Brazil",false],["BRA6","Gabriel Magalhães","Brazil",false],["BRA7","Danilo","Brazil",false],["BRA8","Wesley","Brazil",false],["BRA9","Lucas Paquetá","Brazil",false],["BRA10","Casemiro","Brazil",false],["BRA11","Bruno Guimarães","Brazil",false],["BRA12","Luiz Henrique","Brazil",false],["BRA13","Team Photo","Brazil",false],["BRA14","Vinicius Júnior","Brazil",false],["BRA15","Rodrygo","Brazil",false],["BRA16","João Pedro","Brazil",false],["BRA17","Matheus Cunha","Brazil",false],["BRA18","Gabriel Martinelli","Brazil",false],["BRA19","Raphinha","Brazil",false],["BRA20","Estévão","Brazil",false],
+["CAN1","Team Logo","Canada",true],["CAN2","Dayne St.Clair","Canada",false],["CAN3","Alphonso Davies","Canada",false],["CAN4","Alistair Johnston","Canada",false],["CAN5","Samuel Adekugbe","Canada",false],["CAN6","Riche Larvea","Canada",false],["CAN7","Derek Cornelius","Canada",false],["CAN8","Moïse Bombito","Canada",false],["CAN9","Kamal Miller","Canada",false],["CAN10","Stephen Eustáquio","Canada",false],["CAN11","Ismaël Koné","Canada",false],["CAN12","Jonathan Osorio","Canada",false],["CAN13","Team Photo","Canada",false],["CAN14","Jacob Shaffelburg","Canada",false],["CAN15","Mathieu Choinière","Canada",false],["CAN16","Niko Sigur","Canada",false],["CAN17","Tajon Buchanan","Canada",false],["CAN18","Liam Millar","Canada",false],["CAN19","Cyle Larin","Canada",false],["CAN20","Jonathan David","Canada",false],
+["CPV1","Team Logo","Cape Verde",true],["CPV2","Vozinha","Cape Verde",false],["CPV3","Logan Costa","Cape Verde",false],["CPV4","Pico","Cape Verde",false],["CPV5","Diney","Cape Verde",false],["CPV6","Steven Moreira","Cape Verde",false],["CPV7","Wagner Pina","Cape Verde",false],["CPV8","Joao Paulo","Cape Verde",false],["CPV9","Yannick Semedo","Cape Verde",false],["CPV10","Kevin Pina","Cape Verde",false],["CPV11","Patrick Andrade","Cape Verde",false],["CPV12","Jamiro Monteiro","Cape Verde",false],["CPV13","Team Photo","Cape Verde",false],["CPV14","Deroy Duarte","Cape Verde",false],["CPV15","Garry Rodrigues","Cape Verde",false],["CPV16","Jovane Cabral","Cape Verde",false],["CPV17","Ryan Mendes","Cape Verde",false],["CPV18","Dailon Livramento","Cape Verde",false],["CPV19","Willy Semedo","Cape Verde",false],["CPV20","Bebe","Cape Verde",false],
+["COD1","Team Logo","Congo DR",true],["COD2","Lionel Mpasi","Congo DR",false],["COD3","Aaron Wan-Bissaka","Congo DR",false],["COD4","Axel Tuanzebe","Congo DR",false],["COD5","Arthur Masuaku","Congo DR",false],["COD6","Chancel Mbemba","Congo DR",false],["COD7","Joris Kayembe","Congo DR",false],["COD8","Charles Pickel","Congo DR",false],["COD9","Ngal'ayel Mukau","Congo DR",false],["COD10","Edo Kayembe","Congo DR",false],["COD11","Samuel Moutoussamy","Congo DR",false],["COD12","Noah Sadiki","Congo DR",false],["COD13","Team Photo","Congo DR",false],["COD14","Théo Bongonda","Congo DR",false],["COD15","Meschak Elia","Congo DR",false],["COD16","Yoane Wissa","Congo DR",false],["COD17","Brian Cipenga","Congo DR",false],["COD18","Fiston Mayele","Congo DR",false],["COD19","Cédric Bakambu","Congo DR",false],["COD20","Nathanaël Mbuku","Congo DR",false],
+["COL1","Team Logo","Colombia",true],["COL2","Camilo Vargas","Colombia",false],["COL3","David Ospina","Colombia",false],["COL4","Dávinson Sánchez","Colombia",false],["COL5","Yerry Mina","Colombia",false],["COL6","Daniel Munoz","Colombia",false],["COL7","Johan Mojica","Colombia",false],["COL8","Jhon Lucumí","Colombia",false],["COL9","Santiago Arias","Colombia",false],["COL10","Jefferson Lerma","Colombia",false],["COL11","Kevin Castaño","Colombia",false],["COL12","Richard Rios","Colombia",false],["COL13","Team Photo","Colombia",false],["COL14","James Rodriguez","Colombia",false],["COL15","Juan Fernando Quintero","Colombia",false],["COL16","Jorge Carrascal","Colombia",false],["COL17","Jon Arias","Colombia",false],["COL18","Jhon Cordova","Colombia",false],["COL19","Luis Suarez","Colombia",false],["COL20","Luis Diaz","Colombia",false],
+["CRO1","Team Logo","Croatia",true],["CRO2","Dominik Livaković","Croatia",false],["CRO3","Duje Caleta-Car","Croatia",false],["CRO4","Josko Gvardiol","Croatia",false],["CRO5","Josip Stanišić","Croatia",false],["CRO6","Luka Vušković","Croatia",false],["CRO7","Josip Sutalo","Croatia",false],["CRO8","Kristijan Jakic","Croatia",false],["CRO9","Luka Modrić","Croatia",false],["CRO10","Mateo Kovacic","Croatia",false],["CRO11","Martin Baturina","Croatia",false],["CRO12","Lovro Majer","Croatia",false],["CRO13","Team Photo","Croatia",false],["CRO14","Mario Pasalic","Croatia",false],["CRO15","Petar Sucic","Croatia",false],["CRO16","Ivan Perišić","Croatia",false],["CRO17","Marco Pasalic","Croatia",false],["CRO18","Ante Budimir","Croatia",false],["CRO19","Andrej Kramarić","Croatia",false],["CRO20","Franjo Ivanovic","Croatia",false],
+["CUW1","Team Logo","Curaçao",true],["CUW2","Eloy Room","Curaçao",false],["CUW3","Armando Obispo","Curaçao",false],["CUW4","Sherel Floranus","Curaçao",false],["CUW5","Jurien Gaari","Curaçao",false],["CUW6","Joshua Brenet","Curaçao",false],["CUW7","Roshon Van Eijma","Curaçao",false],["CUW8","Shurandy Sambo","Curaçao",false],["CUW9","Livano Comenencia","Curaçao",false],["CUW10","Godfried Roemeratoe","Curaçao",false],["CUW11","Juninho Bacuna","Curaçao",false],["CUW12","Leandro Bacuna","Curaçao",false],["CUW13","Team Photo","Curaçao",false],["CUW14","Tahith Chong","Curaçao",false],["CUW15","Kenji Gorre","Curaçao",false],["CUW16","Jearl Margaritha","Curaçao",false],["CUW17","Jurgen Locadia","Curaçao",false],["CUW18","Jeremy Antonisse","Curaçao",false],["CUW19","Gervane Kastaneer","Curaçao",false],["CUW20","Sontje Hansen","Curaçao",false],
+["CZE1","Team Logo","Czechia",true],["CZE2","Matej Kovar","Czechia",false],["CZE3","Jindrich Stanek","Czechia",false],["CZE4","Ladislav Krejci","Czechia",false],["CZE5","Vladimir Coufal","Czechia",false],["CZE6","Jaroslav Zeleny","Czechia",false],["CZE7","Tomas Holes","Czechia",false],["CZE8","David Zima","Czechia",false],["CZE9","Michal Sadilek","Czechia",false],["CZE10","Lukas Provod","Czechia",false],["CZE11","Lukas Cerv","Czechia",false],["CZE12","Tomas Soucek","Czechia",false],["CZE13","Team Photo","Czechia",false],["CZE14","Pavel Sulc","Czechia",false],["CZE15","Matej Vydra","Czechia",false],["CZE16","Vasil Kusej","Czechia",false],["CZE17","Tomas Chory","Czechia",false],["CZE18","Vaclav Cerny","Czechia",false],["CZE19","Adam Hlozek","Czechia",false],["CZE20","Patrik Schick","Czechia",false],
+["ECU1","Team Logo","Ecuador",true],["ECU2","Hernán Galíndez","Ecuador",false],["ECU3","Gonzalo Valle","Ecuador",false],["ECU4","Piero Hincapié","Ecuador",false],["ECU5","Pervis Estupiñán","Ecuador",false],["ECU6","Willian Pacho","Ecuador",false],["ECU7","Ángelo Preciado","Ecuador",false],["ECU8","Joel Ordóñez","Ecuador",false],["ECU9","Moises Caicedo","Ecuador",false],["ECU10","Alan Franco","Ecuador",false],["ECU11","Kendry Paez","Ecuador",false],["ECU12","Pedro Vite","Ecuador",false],["ECU13","Team Photo","Ecuador",false],["ECU14","John Veboah","Ecuador",false],["ECU15","Leonardo Campana","Ecuador",false],["ECU16","Gonzalo Plata","Ecuador",false],["ECU17","Nilson Angulo","Ecuador",false],["ECU18","Alan Minda","Ecuador",false],["ECU19","Kevin Rodriguez","Ecuador",false],["ECU20","Enner Valencia","Ecuador",false],
+["EGY1","Team Logo","Egypt",true],["EGY2","Mohamed El Shenawy","Egypt",false],["EGY3","Mohamed Hany","Egypt",false],["EGY4","Mohamed Hamdy","Egypt",false],["EGY5","Yasser Ibrahim","Egypt",false],["EGY6","Khaled Sobhi","Egypt",false],["EGY7","Ramy Rabia","Egypt",false],["EGY8","Hossam Abdelmaguid","Egypt",false],["EGY9","Ahmed Fatouh","Egypt",false],["EGY10","Marwan Attia","Egypt",false],["EGY11","Zizo","Egypt",false],["EGY12","Hamdy Fathy","Egypt",false],["EGY13","Team Photo","Egypt",false],["EGY14","Mohamed Lasheen","Egypt",false],["EGY15","Emam Ashour","Egypt",false],["EGY16","Osama Faisal","Egypt",false],["EGY17","Mohamed Salah","Egypt",false],["EGY18","Mostafa Mohamed","Egypt",false],["EGY19","Trezeguet","Egypt",false],["EGY20","Omar Marmoush","Egypt",false],
+["ENG1","Team Logo","England",true],["ENG2","Jordan Pickford","England",false],["ENG3","John Stones","England",false],["ENG4","Marc Guéhi","England",false],["ENG5","Ezri Konsa","England",false],["ENG6","Trent Alexander-Arnold","England",false],["ENG7","Reece James","England",false],["ENG8","Dan Burn","England",false],["ENG9","Jordan Henderson","England",false],["ENG10","Declan Rice","England",false],["ENG11","Jude Bellingham","England",false],["ENG12","Cole Palmer","England",false],["ENG13","Team Photo","England",false],["ENG14","Morgan Rogers","England",false],["ENG15","Anthony Gordon","England",false],["ENG16","Phil Foden","England",false],["ENG17","Bukayo Saka","England",false],["ENG18","Harry Kane","England",false],["ENG19","Marcus Rashford","England",false],["ENG20","Ollie Watkins","England",false],
+["ESP1","Team Logo","Spain",true],["ESP2","Unai Simon","Spain",false],["ESP3","Robin Le Normand","Spain",false],["ESP4","Aymeric Laporte","Spain",false],["ESP5","Dean Huijsen","Spain",false],["ESP6","Pedro Porro","Spain",false],["ESP7","Dani Carvajal","Spain",false],["ESP8","Marc Cucurella","Spain",false],["ESP9","Martín Zubimendi","Spain",false],["ESP10","Rodri","Spain",false],["ESP11","Pedri","Spain",false],["ESP12","Fabian Ruiz","Spain",false],["ESP13","Team Photo","Spain",false],["ESP14","Mikel Merino","Spain",false],["ESP15","Lamine Yamal","Spain",false],["ESP16","Dani Olmo","Spain",false],["ESP17","Nico Williams","Spain",false],["ESP18","Ferran Torres","Spain",false],["ESP19","Álvaro Morata","Spain",false],["ESP20","Mikel Oyarzabal","Spain",false],
+["FRA1","Team Logo","France",true],["FRA2","Mike Maignan","France",false],["FRA3","Theo Hernandez","France",false],["FRA4","William Saliba","France",false],["FRA5","Jules Kounde","France",false],["FRA6","Ibrahima Konate","France",false],["FRA7","Dayot Upamecano","France",false],["FRA8","Lucas Digne","France",false],["FRA9","Aurélien Tchouaméni","France",false],["FRA10","Eduardo Camavinga","France",false],["FRA11","Manu Kone","France",false],["FRA12","Adrien Rabiot","France",false],["FRA13","Team Photo","France",false],["FRA14","Michael Olise","France",false],["FRA15","Ousmane Dembele","France",false],["FRA16","Bradley Barcola","France",false],["FRA17","Désiré Doué","France",false],["FRA18","Kingsley Coman","France",false],["FRA19","Hugo Ekitike","France",false],["FRA20","Kylian Mbappe","France",false],
+["GER1","Team Logo","Germany",true],["GER2","Marc-André ter Stegen","Germany",false],["GER3","Jonathan Tah","Germany",false],["GER4","David Raum","Germany",false],["GER5","Nico Schlotterbeck","Germany",false],["GER6","Antonio Rüdiger","Germany",false],["GER7","Waldemar Anton","Germany",false],["GER8","Ridle Baku","Germany",false],["GER9","Maximilian Mittelstadt","Germany",false],["GER10","Joshua Kimmich","Germany",false],["GER11","Florian Wirtz","Germany",false],["GER12","Felix Nmecha","Germany",false],["GER13","Team Photo","Germany",false],["GER14","Leon Goretzka","Germany",false],["GER15","Jamal Musiala","Germany",false],["GER16","Serge Gnabry","Germany",false],["GER17","Kai Havertz","Germany",false],["GER18","Leroy Sane","Germany",false],["GER19","Karim Adeyemi","Germany",false],["GER20","Nick Woltemade","Germany",false],
+["GHA1","Team Logo","Ghana",true],["GHA2","Lawrence Ati Zigi","Ghana",false],["GHA3","Tariq Lamptey","Ghana",false],["GHA4","Mohammed Salisu","Ghana",false],["GHA5","Alidu Seidu","Ghana",false],["GHA6","Alexander Djiku","Ghana",false],["GHA7","Gideon Mensah","Ghana",false],["GHA8","Caleb Yirenkyi","Ghana",false],["GHA9","Abdul Issahaku Fatawu","Ghana",false],["GHA10","Thomas Partey","Ghana",false],["GHA11","Salis Abdul Samed","Ghana",false],["GHA12","Kamaldeen Sulemana","Ghana",false],["GHA13","Team Photo","Ghana",false],["GHA14","Mohammed Kudus","Ghana",false],["GHA15","Inaki Williams","Ghana",false],["GHA16","Jordan Ayew","Ghana",false],["GHA17","Andrew Ayew","Ghana",false],["GHA18","Joseph Paintsil","Ghana",false],["GHA19","Osman Bukari","Ghana",false],["GHA20","Antoine Semenyo","Ghana",false],
+["HAI1","Team Logo","Haiti",true],["HAI2","Johny Placide","Haiti",false],["HAI3","Carlens Arcus","Haiti",false],["HAI4","Martin Expérience","Haiti",false],["HAI5","Jean-Kevin Duverne","Haiti",false],["HAI6","Ricardo Adé","Haiti",false],["HAI7","Duke Lacroix","Haiti",false],["HAI8","Garven Metusala","Haiti",false],["HAI9","Hannes Delcroix","Haiti",false],["HAI10","Leverton Pierre","Haiti",false],["HAI11","Danley Jean Jacques","Haiti",false],["HAI12","Jean-Ricner Bellegarde","Haiti",false],["HAI13","Team Photo","Haiti",false],["HAI14","Christopher Attys","Haiti",false],["HAI15","Derrick Etienne Jr","Haiti",false],["HAI16","Josue Casimir","Haiti",false],["HAI17","Ruben Providence","Haiti",false],["HAI18","Duckens Nazon","Haiti",false],["HAI19","Louicius Deedson","Haiti",false],["HAI20","Frantzdy Pierrot","Haiti",false],
+["IRN1","Team Logo","Iran",true],["IRN2","Alireza Beiranvand","Iran",false],["IRN3","Morteza Pouraliganji","Iran",false],["IRN4","Ehsan Hajsafi","Iran",false],["IRN5","Milad Mohammadi","Iran",false],["IRN6","Shojae Khalilzadeh","Iran",false],["IRN7","Ramin Rezaeian","Iran",false],["IRN8","Hossein Kanaani","Iran",false],["IRN9","Sadegh Moharrami","Iran",false],["IRN10","Saleh Hardani","Iran",false],["IRN11","Saeed Ezatolahi","Iran",false],["IRN12","Saman Ghoddos","Iran",false],["IRN13","Team Photo","Iran",false],["IRN14","Omid Noorafkan","Iran",false],["IRN15","Roozbeh Cheshmi","Iran",false],["IRN16","Mohammad Mohebi","Iran",false],["IRN17","Sardar Azmoun","Iran",false],["IRN18","Mehdi Taremi","Iran",false],["IRN19","Alireza Jahanbakhsh","Iran",false],["IRN20","Ali Gholizadeh","Iran",false],
+["IRQ1","Team Logo","Iraq",true],["IRQ2","Jalal Hassan","Iraq",false],["IRQ3","Rebin Sulaka","Iraq",false],["IRQ4","Hussein Ali","Iraq",false],["IRQ5","Akam Hashem","Iraq",false],["IRQ6","Merchas Doski","Iraq",false],["IRQ7","Zaid Tahseen","Iraq",false],["IRQ8","Manaf Younis","Iraq",false],["IRQ9","Zidane Iqbal","Iraq",false],["IRQ10","Amir Al-Ammari","Iraq",false],["IRQ11","Ibrahim Bavesh","Iraq",false],["IRQ12","Ali Jasim","Iraq",false],["IRQ13","Team Photo","Iraq",false],["IRQ14","Youssef Amyn","Iraq",false],["IRQ15","Aimar Sher","Iraq",false],["IRQ16","Marko Farji","Iraq",false],["IRQ17","Osama Rashid","Iraq",false],["IRQ18","Ali Al-Hamadi","Iraq",false],["IRQ19","Aymen Hussein","Iraq",false],["IRQ20","Mohanad Ali","Iraq",false],
+["CIV1","Team Logo","Ivory Coast",true],["CIV2","Yahia Fofana","Ivory Coast",false],["CIV3","Ghislain Konan","Ivory Coast",false],["CIV4","Wilfried Singo","Ivory Coast",false],["CIV5","Odilon Kossounou","Ivory Coast",false],["CIV6","Evan Ndicka","Ivory Coast",false],["CIV7","Willy Boly","Ivory Coast",false],["CIV8","Emmanuel Agbadou","Ivory Coast",false],["CIV9","Ousmane Diomande","Ivory Coast",false],["CIV10","Franck Kessie","Ivory Coast",false],["CIV11","Seko Fofana","Ivory Coast",false],["CIV12","Ibrahim Sangare","Ivory Coast",false],["CIV13","Team Photo","Ivory Coast",false],["CIV14","Jean-Philippe Gbamin","Ivory Coast",false],["CIV15","Amad Diallo","Ivory Coast",false],["CIV16","Sébastien Haller","Ivory Coast",false],["CIV17","Simon Adingra","Ivory Coast",false],["CIV18","Yan Diomande","Ivory Coast",false],["CIV19","Evann Guessand","Ivory Coast",false],["CIV20","Oumar Diakite","Ivory Coast",false],
+["JOR1","Team Logo","Jordan",true],["JOR2","Yazeed Abulaila","Jordan",false],["JOR3","Ihsan Haddad","Jordan",false],["JOR4","Mohammad Abu Hashish","Jordan",false],["JOR5","Yazan Al-Arab","Jordan",false],["JOR6","Abdallah Nasib","Jordan",false],["JOR7","Saleem Obaid","Jordan",false],["JOR8","Mohammad Abualnadi","Jordan",false],["JOR9","Ibrahim Saadeh","Jordan",false],["JOR10","Nizar Al-Rashdan","Jordan",false],["JOR11","Noor Al-Rawabdeh","Jordan",false],["JOR12","Mohannad Abu Taha","Jordan",false],["JOR13","Team Photo","Jordan",false],["JOR14","Amer Jamous","Jordan",false],["JOR15","Musa Al-Taamari","Jordan",false],["JOR16","Yazan Al-Naimat","Jordan",false],["JOR17","Mahmoud Al-Mardi","Jordan",false],["JOR18","Ali Olwan","Jordan",false],["JOR19","Mohammad Abu Zrayq","Jordan",false],["JOR20","Ibrahim Sabra","Jordan",false],
+["JPN1","Team Logo","Japan",true],["JPN2","Zion Suzuki","Japan",false],["JPN3","Henry Heroki Mochizuki","Japan",false],["JPN4","Ayumu Seko","Japan",false],["JPN5","Junnosuke Suzuki","Japan",false],["JPN6","Shogo Taniguchi","Japan",false],["JPN7","Tsuyoshi Watanabe","Japan",false],["JPN8","Kaishu Sano","Japan",false],["JPN9","Yuki Soma","Japan",false],["JPN10","Ao Tanaka","Japan",false],["JPN11","Daichi Kamada","Japan",false],["JPN12","Takefusa Kubo","Japan",false],["JPN13","Team Photo","Japan",false],["JPN14","Ritsu Doan","Japan",false],["JPN15","Keito Nakamura","Japan",false],["JPN16","Takumi Minamino","Japan",false],["JPN17","Shuto Machino","Japan",false],["JPN18","Junya Ito","Japan",false],["JPN19","Koki Ogawa","Japan",false],["JPN20","Ayase Ueda","Japan",false],
+["KSA1","Team Logo","Saudi Arabia",true],["KSA2","Nawaf Alaqidi","Saudi Arabia",false],["KSA3","Abdulrahman Al-Sanbi","Saudi Arabia",false],["KSA4","Saud Abdulhamid","Saudi Arabia",false],["KSA5","Nawaf Bouwashl","Saudi Arabia",false],["KSA6","Jihad Thakri","Saudi Arabia",false],["KSA7","Moteb Al-Harbi","Saudi Arabia",false],["KSA8","Hassan Altambakti","Saudi Arabia",false],["KSA9","Musab Aljuwayr","Saudi Arabia",false],["KSA10","Ziyad Aljohani","Saudi Arabia",false],["KSA11","Abdullah Alkhaibari","Saudi Arabia",false],["KAS12","Nasser Aldawsari","Saudi Arabia",false],["KSA13","Team Photo","Saudi Arabia",false],["KSA14","Saleh Abu Alshamat","Saudi Arabia",false],["KSA15","Marwan Alsahafi","Saudi Arabia",false],["KSA16","Salem Aldawsari","Saudi Arabia",false],["KSA17","Abdulrahman Al-Aboud","Saudi Arabia",false],["KSA18","Feras Akbrikan","Saudi Arabia",false],["KSA19","Saleh Alshehri","Saudi Arabia",false],["KSA20","Abdullah Al-Hamdan","Saudi Arabia",false],
+["KOR1","Team Logo","South Korea",true],["KOR2","Hyeon-woo Jo","South Korea",false],["KOR3","Seung-Gyu Kim","South Korea",false],["KOR4","Min-jae Kim","South Korea",false],["KOR5","Yu-min Cho","South Korea",false],["KOR6","Young-woo Seol","South Korea",false],["KOR7","Han-beom Lee","South Korea",false],["KOR8","Tae-seok Lee","South Korea",false],["KOR9","Myung-jae Lee","South Korea",false],["KOR10","Jae-sung Lee","South Korea",false],["KOR11","In-beom Hwang","South Korea",false],["KOR12","Kang-in Lee","South Korea",false],["KOR13","Team Photo","South Korea",false],["KOR14","Seung-ho Paik","South Korea",false],["KOR15","Jens Castrop","South Korea",false],["KOR16","Dongg-yeong Lee","South Korea",false],["KOR17","Gue-sung Cho","South Korea",false],["KOR18","Heung-min Son","South Korea",false],["KOR19","Hee-chan Hwang","South Korea",false],["KOR20","Hyeon-Gyu Oh","South Korea",false],
+["MAR1","Team Logo","Morocco",true],["MAR2","Yassine Bounou","Morocco",false],["MAR3","Munir El Kajoui","Morocco",false],["MAR4","Achraf Hakimi","Morocco",false],["MAR5","Noussair Mazraoui","Morocco",false],["MAR6","Nayef Aguerd","Morocco",false],["MAR7","Roman Saiss","Morocco",false],["MAR8","Jawad El Yamio","Morocco",false],["MAR9","Adam Masina","Morocco",false],["MAR10","Sofyan Amrabat","Morocco",false],["MAR11","Azzedine Ounahi","Morocco",false],["MAR12","Eliesse Ben Seghir","Morocco",false],["MAR13","Team Photo","Morocco",false],["MAR14","Bilal El Khannouss","Morocco",false],["MAR15","Ismael Saibari","Morocco",false],["MAR16","Youssef En-Nesyri","Morocco",false],["MAR17","Abde Ezzalzouli","Morocco",false],["MAR18","Soufiane Rahimi","Morocco",false],["MAR19","Brahim Diaz","Morocco",false],["MAR20","Ayoub El Kaabi","Morocco",false],
+["MEX1","Team Logo","Mexico",true],["MEX2","Luis Malagón","Mexico",false],["MEX3","Johan Vasquez","Mexico",false],["MEX4","Jorge Sánchez","Mexico",false],["MEX5","Cesar Montes","Mexico",false],["MEX6","Jesus Gallardo","Mexico",false],["MEX7","Israel Reyes","Mexico",false],["MEX8","Diego Lainez","Mexico",false],["MEX9","Carlos Rodriguez","Mexico",false],["MEX10","Edson Alvarez","Mexico",false],["MEX11","Orbelin Pineda","Mexico",false],["MEX12","Marcel Ruiz","Mexico",false],["MEX13","Team Photo","Mexico",false],["MEX14","Érick Sánchez","Mexico",false],["MEX15","Hirving Lozano","Mexico",false],["MEX16","Santiago Giménez","Mexico",false],["MEX17","Raúl Jiménez","Mexico",false],["MEX18","Alexis Vega","Mexico",false],["MEX19","Roberto Alvarado","Mexico",false],["MEX20","Cesar Huerta","Mexico",false],
+["NED1","Team Logo","Netherlands",true],["NED2","Bart Verbruggen","Netherlands",false],["NED3","Virgil van Dijk","Netherlands",false],["NED4","Micky van de Ven","Netherlands",false],["NED5","Jurrien Timber","Netherlands",false],["NED6","Denzel Dumfries","Netherlands",false],["NED7","Nathan Aké","Netherlands",false],["NED8","Jeremie Frimpong","Netherlands",false],["NED9","Jan Paul van Hecke","Netherlands",false],["NED10","Tijjani Reijnders","Netherlands",false],["NED11","Ryan Gravenberch","Netherlands",false],["NED12","Teun Koopmeiners","Netherlands",false],["NED13","Team Photo","Netherlands",false],["NED14","Frenkie de Jong","Netherlands",false],["NED15","Xavi Simons","Netherlands",false],["NED16","Justin Kluivert","Netherlands",false],["NED17","Memphis Depay","Netherlands",false],["NED18","Donyell Malen","Netherlands",false],["NED19","Wout Weghorst","Netherlands",false],["NED20","Cody Gakpo","Netherlands",false],
+["NOR1","Team Logo","Norway",true],["NOR2","Orjan Nyland","Norway",false],["NOR3","Julian Ryerson","Norway",false],["NOR4","Leo Ostigård","Norway",false],["NOR5","Kristoffer Vassbakk Ajer","Norway",false],["NOR6","Marcus Holmgren Pedersen","Norway",false],["NOR7","David Møller Wolfe","Norway",false],["NOR8","Torbjørn Heggem","Norway",false],["NOR9","Morten Thorsby","Norway",false],["NOR10","Martin Ødegaard","Norway",false],["NOR11","Sander Berge","Norway",false],["NOR12","Andreas Schjelderup","Norway",false],["NOR13","Team Photo","Norway",false],["NOR14","Patrick Berg","Norway",false],["NOR15","Erling Haaland","Norway",false],["NOR16","Alexander Sørloth","Norway",false],["NOR17","Aron Dønnum","Norway",false],["NOR18","Jorgen Strand Larsen","Norway",false],["NOR19","Antonio Nusa","Norway",false],["NOR20","Oscar Bobb","Norway",false],
+["NZL1","Team Logo","New Zealand",true],["NZL2","Max Crocombe Payne","New Zealand",false],["NZL3","Alex Paulsen","New Zealand",false],["NZL4","Michael Boxall","New Zealand",false],["NZL5","Liberato Cacace","New Zealand",false],["NZL6","Tim Payne","New Zealand",false],["NZL7","Tyler Bindon","New Zealand",false],["NZL8","Francis de Vries","New Zealand",false],["NZL9","Finn Surman","New Zealand",false],["NZL10","Joe Bell","New Zealand",false],["NZL11","Sarpreet Singh","New Zealand",false],["NZL12","Ryan Thomas","New Zealand",false],["NZL13","Team Photo","New Zealand",false],["NZL14","Matthew Garbett","New Zealand",false],["NZL15","Marko Stamenić","New Zealand",false],["NZL16","Ben Old","New Zealand",false],["NZL17","Chris Wood","New Zealand",false],["NZL18","Elijah Just","New Zealand",false],["NZL19","Callum McCowatt","New Zealand",false],["NZL20","Kosta Barbarouses","New Zealand",false],
+["PAN1","Team Logo","Panama",true],["PAN2","Orlando Mosquera","Panama",false],["PAN3","Luis Mejia","Panama",false],["PAN4","Fidel Escobar","Panama",false],["PAN5","Andres Andrade","Panama",false],["PAN6","Michael Amir Murillo","Panama",false],["PAN7","Eric Davis","Panama",false],["PAN8","Jose Cordoba","Panama",false],["PAN9","Cesar Blackman","Panama",false],["PAN10","Cristian Martinez","Panama",false],["PAN11","Aníbal Godoy","Panama",false],["PAN12","Adalberto Carrasquilla","Panama",false],["PAN13","Team Photo","Panama",false],["PAN14","Édgar Bárcenas","Panama",false],["PAN15","Carlos Harvey","Panama",false],["PAN16","Ismael Díaz","Panama",false],["PAN17","Jose Fajardo","Panama",false],["PAN18","Cecilio Waterman","Panama",false],["PAN19","Jose Luiz Rodriguez","Panama",false],["PAN20","Alberto Quintero","Panama",false],
+["PAR1","Team Logo","Paraguay",true],["PAR2","Roberto Fernandez","Paraguay",false],["PAR3","Orlando Gill","Paraguay",false],["PAR4","Gustavo Gomez","Paraguay",false],["PAR5","Fabián Balbuena","Paraguay",false],["PAR6","Juan José Cáceres","Paraguay",false],["PAR7","Omar Alderete","Paraguay",false],["PAR8","Junior Alonso","Paraguay",false],["PAR9","Mathías Villasanti","Paraguay",false],["PAR10","Diego Gomez","Paraguay",false],["PAR11","Damián Bobadilla","Paraguay",false],["PAR12","Andres Cubas","Paraguay",false],["PAR13","Team Photo","Paraguay",false],["PAR14","Matias Galarza Fonda","Paraguay",false],["PAR15","Julio Enciso","Paraguay",false],["PAR16","Alejandro Romero Gamarra","Paraguay",false],["PAR17","Miguel Almirón","Paraguay",false],["PAR18","Ramon Sosa","Paraguay",false],["PAR19","Angel Romero","Paraguay",false],["PAR20","Antonio Sanabria","Paraguay",false],
+["POR1","Team Logo","Portugal",true],["POR2","Diogo Costa","Portugal",false],["POR3","Jose Sa","Portugal",false],["POR4","Ruben Dias","Portugal",false],["POR5","João Cancelo","Portugal",false],["POR6","Diogo Dalot","Portugal",false],["POR7","Nuno Mendes","Portugal",false],["POR8","Gonçalo Inácio","Portugal",false],["POR9","Bernardo Silva","Portugal",false],["POR10","Bruno Fernandes","Portugal",false],["POR11","Ruben Neves","Portugal",false],["POR12","Vitinha","Portugal",false],["POR13","Team Photo","Portugal",false],["POR14","João Neves","Portugal",false],["POR15","Cristiano Ronaldo","Portugal",false],["POR16","Francisco Trincao","Portugal",false],["POR17","João Felix","Portugal",false],["POR18","Gonçalo Ramos","Portugal",false],["POR19","Pedro Neto","Portugal",false],["POR20","Rafael Leão","Portugal",false],
+["QAT1","Team Logo","Qatar",true],["QAT2","Meshaal Barsham","Qatar",false],["QAT3","Sultan Albrake","Qatar",false],["QAT4","Lucas Mendes","Qatar",false],["QAT5","Homam Ahmed","Qatar",false],["QAT6","Boualem Khoukhi","Qatar",false],["QAT7","Pedro Miguel","Qatar",false],["QAT8","Tarek Salman","Qatar",false],["QAT9","Mohamed Al-Mannai","Qatar",false],["QAT10","Karim Boudiaf","Qatar",false],["QAT11","Assim Madibo","Qatar",false],["QAT12","Ahmed Fatehi","Qatar",false],["QAT13","Team Photo","Qatar",false],["QAT14","Mohammed Waad","Qatar",false],["QAT15","Abdulaziz Hatem","Qatar",false],["QAT16","Hassan Al-Haydos","Qatar",false],["QAT17","Edmilson Junior","Qatar",false],["QAT18","Akram Hassan Afif","Qatar",false],["QAT19","Ahmed Al Ganehi","Qatar",false],["QAT20","Almoez Ali","Qatar",false],
+["RSA1","Team Logo","South Africa",true],["RSA2","Ronwen Williams","South Africa",false],["RSA3","Sipho Chaine","South Africa",false],["RSA4","Aubrey Modiba","South Africa",false],["RSA5","Samukele Kabini","South Africa",false],["RSA6","Mbekezeli Mbokazi","South Africa",false],["RSA7","Khulumani Ndamane","South Africa",false],["RSA8","Siyabonga Ngezana","South Africa",false],["RSA9","Khuliso Mudau","South Africa",false],["RSA10","Nkosinathi Sibisi","South Africa",false],["RSA11","Teboho Mokoena","South Africa",false],["RSA12","Thalente Mbatha","South Africa",false],["RSA13","Team Photo","South Africa",false],["RSA14","Bathasi Aubaas","South Africa",false],["RSA15","Yaya Sithole","South Africa",false],["RSA16","Sipho Mbule","South Africa",false],["RSA17","Lyle Foster","South Africa",false],["RSA18","Iqraam Rayners","South Africa",false],["RSA19","Mohau Nkota","South Africa",false],["RSA20","Oswin Appollis","South Africa",false],
+["SCO1","Team Logo","Scotland",true],["SCO2","Angus Gunn","Scotland",false],["SCO3","Jack Hendry","Scotland",false],["SCO4","Kieran Tierney","Scotland",false],["SCO5","Aaron Hickey","Scotland",false],["SCO6","Andrew Robertson","Scotland",false],["SCO7","Scott McKenna","Scotland",false],["SCO8","John Souttar","Scotland",false],["SCO9","Anthony Ralston","Scotland",false],["SCO10","Grant Hanley","Scotland",false],["SCO11","Scott McTominay","Scotland",false],["SCO12","Billy Gilmour","Scotland",false],["SCO13","Team Photo","Scotland",false],["SCO14","Lewis Ferguson","Scotland",false],["SCO15","Ryan Christie","Scotland",false],["SCO16","Kenny McLean","Scotland",false],["SCO17","John McGinn","Scotland",false],["SCO18","Lyndon Dykes","Scotland",false],["SCO19","Che Adams","Scotland",false],["SCO20","Ben Gannon-Doak","Scotland",false],
+["SEN1","Team Logo","Senegal",true],["SEN2","Edouard Mendy","Senegal",false],["SEN3","Yehvann Diouf","Senegal",false],["SEN4","Moussa Niakhaté","Senegal",false],["SEN5","Abdoulaye Seck","Senegal",false],["SEN6","Ismail Jakobs","Senegal",false],["SEN7","El Hadji Malick Diouf","Senegal",false],["SEN8","Kalidou Koulibaly","Senegal",false],["SEN9","Idrissa Gana Gueye","Senegal",false],["SEN10","Pape Matar Sarr","Senegal",false],["SEN11","Pape Gueye","Senegal",false],["SEN12","Habib Diarra","Senegal",false],["SEN13","Team Photo","Senegal",false],["SEN14","Lamine Camara","Senegal",false],["SEN15","Sadio Mane","Senegal",false],["SEN16","Ismaïla Sarr","Senegal",false],["SEN17","Boulaye Dia","Senegal",false],["SEN18","Iliman Ndiaye","Senegal",false],["SEN19","Nicolas Jackson","Senegal",false],["SEN20","Krepin Diatta","Senegal",false],
+["SUI1","Team Logo","Switzerland",true],["SUI2","Gregor Kobel","Switzerland",false],["SUI3","Yvon Mvogo","Switzerland",false],["SUI4","Manuel Akanji","Switzerland",false],["SUI5","Ricardo Rodriguez","Switzerland",false],["SUI6","Nico Elvedi","Switzerland",false],["SUI7","Aurèle Amenda","Switzerland",false],["SUI8","Silvan Widmer","Switzerland",false],["SWI9","Granit Xhaka","Switzerland",false],["SUI10","Denis Zakaria","Switzerland",false],["SUI11","Remo Freuler","Switzerland",false],["SUI12","Fabian Rieder","Switzerland",false],["SUI13","Team Photo","Switzerland",false],["SUI14","Ardon Jashari","Switzerland",false],["SUI15","Johan Manzambi","Switzerland",false],["SUI16","Michel Aebischer","Switzerland",false],["SUI17","Breel Embolo","Switzerland",false],["SUI18","Ruben Vargas","Switzerland",false],["SUI19","Dan Ndoye","Switzerland",false],["SWI20","Zeki Amdouni","Switzerland",false],
+["SWE1","Team Logo","Sweden",true],["SWE2","Victor Johansson","Sweden",false],["SWE3","Isak Hien","Sweden",false],["SWE4","Gabriel Gudmundsson","Sweden",false],["SWE5","Emil Holm","Sweden",false],["SWE6","Victor Nilsson Lindelöf","Sweden",false],["SWE7","Gustaf Lagerbielke","Sweden",false],["SWE8","Lucas Bergvall","Sweden",false],["SWE9","Hugo Larsson","Sweden",false],["SWE10","Jesper Karlström","Sweden",false],["SWE11","Yasin Ayari","Sweden",false],["SWE12","Mattias Svanberg","Sweden",false],["SWE13","Team Photo","Sweden",false],["SWE14","Daniel Svensson","Sweden",false],["SWE15","Ken Sema","Sweden",false],["SWE16","Roony Bardghji","Sweden",false],["SWE17","Dejan Kulusevski","Sweden",false],["SWE18","Anthony Elanga","Sweden",false],["SWE19","Alexander Isak","Sweden",false],["SWE20","Viktor Gyökeres","Sweden",false],
+["TUN1","Team Logo","Tunisia",true],["TUN2","Bechir Ben Said","Tunisia",false],["TUN3","Aymen Dahmen","Tunisia",false],["TUN4","Yan Valery","Tunisia",false],["TUN5","Montassar Talbi","Tunisia",false],["TUN6","Yassine Meriah","Tunisia",false],["TUN7","Ali Abdi","Tunisia",false],["TUN8","Dylan Bronn","Tunisia",false],["TUN9","Ellyes Skhiri","Tunisia",false],["TUN10","Aissa Laidouni","Tunisia",false],["TUN11","Ferjani Sassi","Tunisia",false],["TUN12","Mohamed Ali Ben Romdhane","Tunisia",false],["TUN13","Team Photo","Tunisia",false],["TUN14","Hannibal Mejbri","Tunisia",false],["TUN15","Elias Achouri","Tunisia",false],["TUN16","Elias Saad","Tunisia",false],["TUN17","Hazem Mastouri","Tunisia",false],["TUN18","Ismael Gharbi","Tunisia",false],["TUN19","Sayfallah Ltaief","Tunisia",false],["TUN20","Naim Sliti","Tunisia",false],
+["TUR1","Team Logo","Türkiye",true],["TUR2","Ugurcan Cakir","Türkiye",false],["TUR3","Mert Muldur","Türkiye",false],["TUR4","Zeki Celik","Türkiye",false],["TUR5","Abdulkerim Bardakci","Türkiye",false],["TUR6","Caglar Soyuncu","Türkiye",false],["TUR7","Merih Demiral","Türkiye",false],["TUR8","Ferdi Kadioglu","Türkiye",false],["TUR9","Kaan Ayhan","Türkiye",false],["TUR10","Ismail Yuksek","Türkiye",false],["TUR11","Hakan Calhanoglu","Türkiye",false],["TUR12","Orkun Kokcu","Türkiye",false],["TUR13","Team Photo","Türkiye",false],["TUR14","Arda Guler","Türkiye",false],["TUR15","Irfan Can Kahveci","Türkiye",false],["TUR16","Yunus Akgun","Türkiye",false],["TUR17","Can Uzun","Türkiye",false],["TUR18","Baris Alper Yilmaz","Türkiye",false],["TUR19","Kerem Akturkoglu","Türkiye",false],["TUR20","Kenan Yildiz","Türkiye",false],
+["URU1","Team Logo","Uruguay",true],["URU2","Sergio Rochet","Uruguay",false],["URU3","Santiago Mele","Uruguay",false],["URU4","Ronald Araujo","Uruguay",false],["URU5","José María Giménez","Uruguay",false],["URU6","Sebastian Caceres","Uruguay",false],["URU7","Mathias Olivera","Uruguay",false],["URU8","Guillermo Varela","Uruguay",false],["URU9","Nahitan Nandez","Uruguay",false],["URU10","Federico Valverde","Uruguay",false],["URU11","Giorgian De Arrascaeta","Uruguay",false],["URU12","Rodrigo Bentancur","Uruguay",false],["URU13","Team Photo","Uruguay",false],["URU14","Manuel Ugarte","Uruguay",false],["URU15","Nicolás de la Cruz","Uruguay",false],["URU16","Maxi Araujo","Uruguay",false],["URU17","Darwin Núñez","Uruguay",false],["URU18","Federico Viñas","Uruguay",false],["URU19","Rodrigo Aguirre","Uruguay",false],["URU20","Facundo Pellistri","Uruguay",false],
+["USA1","Team Logo","USA",true],["USA2","Math Freese","USA",false],["USA3","Chris Richards","USA",false],["USA4","Tim Ream","USA",false],["USA5","Mark McKenzie","USA",false],["USA6","Alex Freeman","USA",false],["USA7","Antonee Robinson","USA",false],["USA8","Tyler Adams","USA",false],["USA9","Tanner Tessmann","USA",false],["USA10","Weston McKenny","USA",false],["USA11","Christian Roldan","USA",false],["USA12","Timothy Weah","USA",false],["USA13","Team Photo","USA",false],["USA14","Diego Luna","USA",false],["USA15","Malik Tillman","USA",false],["USA16","Christian Pulisic","USA",false],["USA17","Brenden Aaronson","USA",false],["USA18","Ricardo Pepi","USA",false],["USA19","Haji Wright","USA",false],["USA20","Folarin Balogun","USA",false],
+["UZB1","Team Logo","Uzbekistan",true],["UZB2","Utkir Yusupov","Uzbekistan",false],["UZB3","Farrukh Savfiev","Uzbekistan",false],["UZB4","Sherzod Nasrullaev","Uzbekistan",false],["UZB5","Umar Eshmurodov","Uzbekistan",false],["UZB6","Husniddin Aliqulov","Uzbekistan",false],["UZB7","Rustamjon Ashurmatov","Uzbekistan",false],["UZB8","Khojiakbar Alijonov","Uzbekistan",false],["UZB9","Abdukodir Khusanov","Uzbekistan",false],["UZB10","Odiljon Hamrobekov","Uzbekistan",false],["UZB11","Otabek Shukurov","Uzbekistan",false],["UZB12","Jamshid Iskanderov","Uzbekistan",false],["UZB13","Team Photo","Uzbekistan",false],["UZB14","Azizbek Turgunboev","Uzbekistan",false],["UZB15","Khojimat Erkinov","Uzbekistan",false],["UZB16","Eldor Shomurodov","Uzbekistan",false],["UZB17","Oston Urunov","Uzbekistan",false],["UZB18","Jaloliddin Masharipov","Uzbekistan",false],["UZB19","Igor Sergeev","Uzbekistan",false],["UZB20","Abbosbek Fayzullaev","Uzbekistan",false],
+["FWC9","Italy 1934 – World Cup History","FIFA Museum",true],["FWC10","Uruguay 1950 – World Cup History","FIFA Museum",true],["FWC11","West Germany 1954 – World Cup History","FIFA Museum",true],["FWC12","Brazil 1962 – World Cup History","FIFA Museum",true],["FWC13","West Germany 1974 – World Cup History","FIFA Museum",true],["FWC14","Argentina 1986 – World Cup History","FIFA Museum",true],["FWC15","Brazil 1994 – World Cup History","FIFA Museum",true],["FWC16","Brazil 2002 – World Cup History","FIFA Museum",true],["FWC17","Italy 2006 – World Cup History","FIFA Museum",true],["FWC18","Germany 2014 – World Cup History","FIFA Museum",true],["FWC19","Argentina 2022 – World Cup History","FIFA Museum",true],
+];
+
+// ─── FLAGS ───────────────────────────────────────────────────────────────────
+const FLAGS = {
+  'Algeria':'🇩🇿','Argentina':'🇦🇷','Australia':'🇦🇺','Austria':'🇦🇹',
+  'Belgium':'🇧🇪','Bosnia and Herzegovina':'🇧🇦','Brazil':'🇧🇷',
+  'Canada':'🇨🇦','Cape Verde':'🇨🇻','Congo DR':'🇨🇩','Colombia':'🇨🇴',
+  'Croatia':'🇭🇷','Curaçao':'🇨🇼','Czechia':'🇨🇿',
+  'Ecuador':'🇪🇨','Egypt':'🇪🇬','England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+  'Spain':'🇪🇸','France':'🇫🇷','Germany':'🇩🇪','Ghana':'🇬🇭',
+  'Haiti':'🇭🇹','Iran':'🇮🇷','Iraq':'🇮🇶','Ivory Coast':'🇨🇮',
+  'Jordan':'🇯🇴','Japan':'🇯🇵','Saudi Arabia':'🇸🇦','South Korea':'🇰🇷',
+  'Morocco':'🇲🇦','Mexico':'🇲🇽','Netherlands':'🇳🇱','Norway':'🇳🇴',
+  'New Zealand':'🇳🇿','Panama':'🇵🇦','Paraguay':'🇵🇾','Portugal':'🇵🇹',
+  'Qatar':'🇶🇦','South Africa':'🇿🇦','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','Senegal':'🇸🇳',
+  'Switzerland':'🇨🇭','Sweden':'🇸🇪','Tunisia':'🇹🇳','Türkiye':'🇹🇷',
+  'Uruguay':'🇺🇾','USA':'🇺🇸','Uzbekistan':'🇺🇿',
+  'Introduction':'⚽','FIFA Museum':'🏛️',
+};
+function flag(country) { return FLAGS[country] || '🌐'; }
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'wc2026_tracker';
+
+// Build sections
+const SECTIONS = {};
+for (const [id,,c] of STICKERS) { if (!SECTIONS[c]) SECTIONS[c]=[]; SECTIONS[c].push(id); }
+const COUNTRIES = [...new Set(STICKERS.map(s=>s[2]))].sort();
+
+let collection = {};
+try {
+  const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  // Migrate old string values → numbers
+  for (const [k, v] of Object.entries(raw)) {
+    if (v === 'have')      collection[k] = 1;
+    else if (v === 'duplicate') collection[k] = 2;
+    else if (typeof v === 'number') collection[k] = v;
+  }
+} catch {}
+
+// Populate country dropdown
+const cf = document.getElementById('country-filter');
+COUNTRIES.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; cf.appendChild(o); });
+
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collection)); } catch {} }
+// Returns numeric count for a sticker (0 = missing)
+function count(id) { return collection[id] || 0; }
+function pctColor(p) { return p===100?'#15803d':p>=75?'#16a34a':p>=50?'#ca8a04':p>=25?'#ea580c':'#9ca3af'; }
+
+// Display config based on count
+function cfg(n) {
+  if (n === 0) return { icon:'⬜', label:'Missing',   color:'#6b7280', bg:'transparent',           rowClass:'' };
+  if (n === 1) return { icon:'✅', label:'Got it ×1', color:'#15803d', bg:'rgba(22,163,74,.07)',    rowClass:'have' };
+  return             { icon:'🔄', label:`×${n}`,      color:'#b45309', bg:'rgba(217,119,6,.07)',    rowClass:'duplicate' };
+}
+
+// Status filter helper: maps dropdown value to count condition
+function matchesStatus(n, status) {
+  if (!status)             return true;
+  if (status === 'pending')   return n === 0;
+  if (status === 'have')      return n >= 1;
+  if (status === 'duplicate') return n >= 2;
+  return true;
+}
+
+// ─── RENDER STATS ─────────────────────────────────────────────────────────────
+function renderStats() {
+  const have   = STICKERS.filter(([id])=>count(id) >= 1).length;
+  const dup    = STICKERS.reduce((acc,[id])=>acc + Math.max(0, count(id)-1), 0);
+  const needed = STICKERS.length - have;
+  const pct    = Math.round(have/STICKERS.length*100);
+  document.getElementById('val-total').textContent  = STICKERS.length;
+  document.getElementById('val-have').textContent   = have;
+  document.getElementById('val-dup').textContent    = dup;
+  document.getElementById('val-needed').textContent = needed;
+  document.getElementById('overall-pct').textContent = pct+'%';
+  document.getElementById('overall-bar').style.width  = pct+'%';
+  document.getElementById('overall-sub').innerHTML =
+    `<span>✅ ${have} collected</span><span>🔄 ${dup} extra copies</span><span>⬜ ${needed} still needed</span>`;
+}
+
+// ─── TEAM GRID ────────────────────────────────────────────────────────────────
+let currentSort = 'name';
+function setSort(s) {
+  currentSort = s;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.id==='sort-'+s));
+  renderTeamGrid();
+}
+
+function renderTeamGrid() {
+  const rows = COUNTRIES.map(country => {
+    const ids     = SECTIONS[country]||[];
+    const have    = ids.filter(id=>count(id) >= 1).length;
+    const dup     = ids.reduce((acc,id)=>acc + Math.max(0, count(id)-1), 0);
+    const pct     = ids.length ? Math.round(have/ids.length*100) : 0;
+    return { country, total:ids.length, have, dup, missing:ids.length-have, pct };
+  });
+  const sorted = [...rows].sort((a,b)=>
+    currentSort==='pct'     ? b.pct-a.pct :
+    currentSort==='missing' ? b.missing-a.missing :
+    a.country.localeCompare(b.country)
+  );
+  const complete = rows.filter(r=>r.pct===100).length;
+  const none     = rows.filter(r=>r.have===0).length;
+  document.getElementById('section-summary').textContent =
+    `${complete} teams complete · ${none} not started`;
+  document.getElementById('team-grid').innerHTML = sorted.map(({country,total,have,dup,missing,pct})=>`
+    <div class="team-card ${pct===100?'complete':''}" onclick="filterByCountry('${country.replace(/'/g,"\\'")}')">
+      <div class="team-card-header">
+        <span class="team-name">${pct===100?'✅ ':flag(country)+' '}${country}</span>
+        <span class="team-pct" style="color:${pctColor(pct)}">${pct}%</span>
+      </div>
+      <div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${pct}%;background:${pctColor(pct)}"></div></div>
+      <div class="team-sub">
+        <span>✅ ${have}/${total}</span>
+        ${dup>0?`<span>🔄 +${dup}</span>`:''}
+        ${missing>0?`<span>⬜ ${missing}</span>`:''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterByCountry(c) {
+  document.getElementById('country-filter').value = c;
+  document.getElementById('section-body').classList.remove('open');
+  document.getElementById('section-chevron').textContent = '▼ Show';
+  renderList();
+  window.scrollTo({ top: document.querySelector('.filters').offsetTop - 70, behavior: 'smooth' });
+}
+
+// ─── SECTION TOGGLE ──────────────────────────────────────────────────────────
+function toggleSection() {
+  const body = document.getElementById('section-body');
+  const open = body.classList.toggle('open');
+  document.getElementById('section-chevron').textContent = open ? '▲ Hide' : '▼ Show';
+  if (open) renderTeamGrid();
+}
+
+// ─── LIST ORDER ──────────────────────────────────────────────────────────────
+let listOrder = 'album'; // 'album' | 'az'
+function setOrder(order) {
+  listOrder = order;
+  document.getElementById('order-album').classList.toggle('active', order === 'album');
+  document.getElementById('order-az').classList.toggle('active', order === 'az');
+  renderList();
+}
+
+// ─── STICKER LIST ─────────────────────────────────────────────────────────────
+function renderList() {
+  const q       = document.getElementById('search').value.trim().toLowerCase();
+  const country = document.getElementById('country-filter').value;
+  const status  = document.getElementById('status-filter').value;
+  const filtered = STICKERS.filter(([id,desc,c]) => {
+    if (!matchesStatus(count(id), status)) return false;
+    if (country && c!==country)            return false;
+    if (q && !id.toLowerCase().includes(q) && !desc.toLowerCase().includes(q) && !c.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  // Apply order
+  const displayList = listOrder === 'az'
+    ? [...filtered].sort((a, b) => {
+        const ac = a[2], bc = b[2];
+        // Introduction pinned to top, FIFA Museum pinned to bottom
+        const aTop = ac === 'Introduction', bTop = bc === 'Introduction';
+        const aBot = ac === 'FIFA Museum',  bBot = bc === 'FIFA Museum';
+        if (aTop && bTop) return 0;
+        if (aTop) return -1;
+        if (bTop) return 1;
+        if (aBot && bBot) return 0;
+        if (aBot) return 1;
+        if (bBot) return -1;
+        return ac.localeCompare(bc, 'en');
+      })
+    : filtered;
+
+  document.getElementById('filter-count').innerHTML =
+    `Showing <strong>${displayList.length}</strong> of ${STICKERS.length} stickers &nbsp;·&nbsp;
+     Order: <strong>${listOrder === 'az' ? '🔤 A–Z (English)' : '📖 Album'}</strong> &nbsp;·&nbsp;
+     <strong>tap</strong> to add a copy &nbsp;·&nbsp; <strong>long-press</strong> to remove one`;
+  const af = document.getElementById('active-filter');
+  af.innerHTML = country
+    ? `<span class="chip" onclick="clearFilter()">✕ ${flag(country)} ${country}</span>`
+    : '';
+
+  const list = document.getElementById('sticker-list');
+  if (!displayList.length) { list.innerHTML = '<div class="no-results">No stickers match your filters.</div>'; return; }
+
+  let lastCountry = null;
+  list.innerHTML = displayList.map(([id,desc,country,foil]) => {
+    const n = count(id); const c = cfg(n);
+    let html = '';
+    if (country !== lastCountry) {
+      lastCountry = country;
+      html += `<div class="print-section-break">${flag(country)} ${country}</div>`;
+    }
+    html += `<div class="sticker-row ${c.rowClass}"
+        onclick="addCopy('${id}')"
+        oncontextmenu="removeCopy(event,'${id}')"
+        ontouchstart="startLongPress(event,'${id}')"
+        ontouchend="cancelLongPress()"
+        ontouchmove="cancelLongPress()">
+      <span class="sticker-icon">${c.icon}</span>
+      <span class="sticker-id">${id}</span>
+      <span class="sticker-desc">${desc}${foil?'<span class="foil-badge">FOIL</span>':''}</span>
+      <span class="sticker-country">${flag(country)} ${country}</span>
+      <span class="sticker-status" style="color:${c.color}">${c.label}</span>
+    </div>`;
+    return html;
+  }).join('');
+}
+
+function clearFilter() {
+  document.getElementById('country-filter').value = '';
+  renderList();
+}
+
+// Long-press support
+let longPressTimer = null;
+function startLongPress(e, id) {
+  cancelLongPress();
+  longPressTimer = setTimeout(() => {
+    removeCopy(e, id);
+    longPressTimer = null;
+  }, 500);
+}
+function cancelLongPress() {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+}
+
+function addCopy(id) {
+  collection[id] = (collection[id] || 0) + 1;
+  save(); renderStats();
+  if (document.getElementById('section-body').classList.contains('open')) renderTeamGrid();
+  renderList();
+}
+
+function removeCopy(e, id) {
+  if (e && e.preventDefault) e.preventDefault();
+  const n = collection[id] || 0;
+  if (n <= 1) delete collection[id]; else collection[id] = n - 1;
+  save(); renderStats();
+  if (document.getElementById('section-body').classList.contains('open')) renderTeamGrid();
+  renderList();
+}
+
+// ─── SHARE ───────────────────────────────────────────────────────────────────
+function openShare() {
+  document.getElementById('export-input').value = btoa(JSON.stringify(collection));
+  document.getElementById('import-input').value = '';
+  document.getElementById('import-msg').className = 'msg';
+  document.getElementById('modal').classList.add('open');
+}
+function closeShare() { document.getElementById('modal').classList.remove('open'); }
+function doCopy() {
+  const inp = document.getElementById('export-input');
+  inp.select(); document.execCommand('copy');
+  navigator.clipboard?.writeText(inp.value).catch(()=>{});
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000);
+}
+function doImport() {
+  const msg = document.getElementById('import-msg');
+  try {
+    const parsed = JSON.parse(atob(document.getElementById('import-input').value.trim()));
+    collection = parsed; save();
+    msg.textContent = 'Imported successfully!'; msg.className = 'msg success';
+    setTimeout(() => { closeShare(); renderAll(); }, 1500);
+  } catch {
+    msg.textContent = 'Invalid code — please check and try again.'; msg.className = 'msg error';
+  }
+}
+
+// ─── PRINT ───────────────────────────────────────────────────────────────────
+function doPrint() {
+  // Populate the print-only header with live stats
+  const dup     = STICKERS.reduce((acc,[id])=>acc + Math.max(0, count(id)-1), 0);
+  const have    = STICKERS.filter(([id])=>count(id) >= 1).length;
+  const needed  = STICKERS.length - have;
+  const pct     = Math.round(have/STICKERS.length*100);
+  const country = document.getElementById('country-filter').value;
+  const status  = document.getElementById('status-filter').value;
+  const printed = document.querySelectorAll('.sticker-row').length;
+  const dateStr = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const filterDesc = [
+    country ? `Team: ${flag(country)} ${country}` : 'All teams',
+    status  ? `Status: ${status}`                  : 'All statuses',
+  ].join(' · ');
+  document.getElementById('print-meta').innerHTML = `
+    <span>Printed: <span class="print-stat">${dateStr}</span></span>
+    <span>Overall: <span class="print-stat">${pct}% complete</span></span>
+    <span>Got it: <span class="print-stat">${have}</span> &nbsp;·&nbsp; Duplicate: <span class="print-stat">${dup}</span> &nbsp;·&nbsp; Still needed: <span class="print-stat">${needed}</span></span>
+    <span>Filter: <span class="print-stat">${filterDesc}</span> &nbsp;·&nbsp; Showing <span class="print-stat">${printed}</span> stickers</span>
+  `;
+  window.print();
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function renderAll() { renderStats(); renderList(); }
+renderAll();
+</script>
+</body>
+</html>
